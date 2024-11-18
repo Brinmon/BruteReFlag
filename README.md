@@ -1,3 +1,6 @@
+# examples例题特征
+nor.nor : 题目进行单字节验证,错误一个字符直接退出,但是无法找到flag校验的位置,目前只能采用侧信道攻击
+
 
 # PinCracker pintools侧信道攻击脚本
 ## 环境要求

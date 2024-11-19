@@ -192,3 +192,48 @@ elapsed_time = end_time - start_time
 print("CurrentBaseChunkAllPosTable: ", CurrentBaseChunkAllPosTable)
 print(f"运行时间: {elapsed_time:.4f}秒")  # 格式化输出，最多保留4位小数
 ```
+
+### 爆破出第四部分的可能性
+根据前面的值可以得出:flag{R  是前缀,后面的都是单字节验证直接爆破即可。
+```python
+from FridaCrackerModel import *
+
+cmd = ['/home/kali/GithubProject/BruteReFlag/examples/example2/chall']
+jscode = open("/home/kali/GithubProject/BruteReFlag/examples/example2/Hook.js", "rb").read().decode()
+
+BaseChunkNum = 1
+
+FridaCracker = FridaCrackerBase(cmd, jscode)
+FinalFlag = FlagStruct(full_flag="", 
+                       flag_prefix="flag{ReAl1y_ez_cPp_vMach1n4_d0_YoU_L1k4_lT?^_^",
+                       flag_suffix="",
+                       flag_len=47,
+                       flag_base_chunk_len=BaseChunkNum)
+globalmust_idx_value_pairs = []
+globalcannot_idx_value_pairs = []
+
+charset = """0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~ """  # 定义字符集
+length = BaseChunkNum  # 每个组合的长度
+# 创建 BruteDataCombinations 实例
+brute_data_combinations = BruteDataCombinations(charset, length)
+# 将字符集和组合写入到文件
+brute_data_combinations.write_charset_to_file()
+
+
+start_time = time.time()
+for idx in range(len(FinalFlag.Flagprefix), FinalFlag.Flaglen):
+    CurrentBaseChunkAllPosTable = FridaBruteOneChunkValue(FridaCracker, FinalFlag, idx)
+    if CurrentBaseChunkAllPosTable is None:
+        raise ValueError("本次爆破失败,无任何值匹配!!!")
+    FinalFlag.update_flag_prefix(FinalFlag.Flagprefix+CurrentBaseChunkAllPosTable)
+    print(f"当前Flag前缀为: {FinalFlag.Flagprefix}")
+# 记录结束时间
+end_time = time.time()
+
+# 计算运行时间
+elapsed_time = end_time - start_time
+print(f"运行时间: {elapsed_time:.4f}秒")  # 格式化输出，最多保留4位小数
+```
+
+
+

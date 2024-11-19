@@ -67,6 +67,16 @@ class FlagStruct:
 
         # 将列表重新转换为字符串并更新Currentbruteflag
         self.Currentbruteflag = ''.join(current_flag_list)
+    def update_flag_prefix(self, new_prefix):
+        """更新 flag 的前缀"""
+        # 更新前缀
+        self.Flagprefix = new_prefix
+        # 重新构建 Currentbruteflag
+        current_length = len(self.Currentbruteflag)
+        suffix_length = len(self.Flagsuffix)
+
+        # 新的 Currentbruteflag 将基于新前缀、现有长度和后缀进行重新组合
+        self.Currentbruteflag = self.Flagprefix + '!' * (current_length - len(self.Flagprefix) - suffix_length) + self.Flagsuffix
 
     def filter_flag(self, must_idx_value_pairs, cannot_idx_value_pairs):
         """
@@ -111,7 +121,7 @@ class BruteDataCombinations:
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"  
         "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-{}[]|\\:;\"'<>,.?/~`"  
         "{}[]()<>,.?/~_+-=|\\:;\"'!"
-
+        0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~ 
         """
         self.Charset = charset  # 字符集
         self.AllCombinations = [''.join(combination) for combination in itertools.product(charset, repeat=length)]

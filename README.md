@@ -93,5 +93,102 @@ int main(int argc, char* argv[])
 // 注册Instruction函数以便插装指令
 INS_AddInstrumentFunction(Instruction, 0);
 通过对每条汇编指令插入回调函数来实现程序插桩，INS_InsertCall
-![alt text](photo/imageinscountInaddr0.png)
 
+
+
+# FridaCracker frida侧信道攻击脚本
+## 测试案例:前部分双字节加密后面的部分单字节加密
+
+### 爆破出第一部分的可能性
+
+```python
+from FridaCrackerModel import *
+
+cmd = ['/home/kali/GithubProject/BruteReFlag/examples/example2/chall']
+jscode = open("/home/kali/GithubProject/BruteReFlag/examples/example2/Hook.js", "rb").read().decode()
+FridaCracker = FridaCrackerBase(cmd, jscode)
+
+FinalFlag = FlagStruct(full_flag="", 
+                       flag_prefix="",
+                       flag_suffix="}",
+                       flag_len=44,
+                       flag_base_chunk_len=2)
+
+# 记录flag:idx0,1 CurrentBaseChunkAllPosTable:  ['ak', 'bh', 'ci', 'dn', 'eo', 'fl', 'gm', 'hb', 'ic', 'ka', 'lf', 'mg', 'nd', 'oe', 'pz', 'q{', 'rx', 'sy', 'w}', 'xr', 'ys', 'zp', '28', '39', '82', '93', '{q', '}w']
+
+start_time = time.time()
+CurrentBaseChunkAllPosTable = FridaBruteAllPossibleChunksForOne(FridaCracker, FinalFlag, 0)
+# 记录结束时间
+end_time = time.time()
+
+# 计算运行时间
+elapsed_time = end_time - start_time
+print("CurrentBaseChunkAllPosTable: ", CurrentBaseChunkAllPosTable)
+print(f"运行时间: {elapsed_time:.4f}秒")  # 格式化输出，最多保留4位小数
+```
+
+### 爆破出第二部分的可能性
+
+```python
+from FridaCrackerModel import *
+
+cmd = ['/home/kali/GithubProject/BruteReFlag/examples/example2/chall']
+jscode = open("/home/kali/GithubProject/BruteReFlag/examples/example2/Hook.js", "rb").read().decode()
+FridaCracker = FridaCrackerBase(cmd, jscode)
+
+FinalFlag = FlagStruct(full_flag="", 
+                       flag_prefix="fl",
+                       flag_suffix="}",
+                       flag_len=44,
+                       flag_base_chunk_len=2)
+
+# 记录flag:idx2,3 CurrentBaseChunkAllPosTable:  ['ag', 'bd', 'ce', 'db', 'ec', 'ga', 'hn', 'io', 'jl', 'km', 'lj', 'mk', 'nh', 'oi', 'pv', 'qw', 'rt', 'su', 'tr', 'us', 'vp', 'wq', '06', '17', '24', '35', '42', '53', '60', '71', '{}', '}{']
+
+start_time = time.time()
+CurrentBaseChunkAllPosTable = FridaBruteAllPossibleChunksForOne(FridaCracker, FinalFlag, 1)
+# 记录结束时间
+end_time = time.time()
+
+# 计算运行时间
+elapsed_time = end_time - start_time
+print("CurrentBaseChunkAllPosTable: ", CurrentBaseChunkAllPosTable)
+print(f"运行时间: {elapsed_time:.4f}秒")  # 格式化输出，最多保留4位小数
+```
+
+
+
+### 爆破出第三部分的可能性
+发现要求的字符表存在大写字母，所以我们可以尝试大写字母的可能性，爆破出第三部分的可能性。
+
+```python
+from FridaCrackerModel import *
+
+cmd = ['/home/kali/GithubProject/BruteReFlag/examples/example2/chall']
+jscode = open("/home/kali/GithubProject/BruteReFlag/examples/example2/Hook.js", "rb").read().decode()
+FridaCracker = FridaCrackerBase(cmd, jscode)
+
+FinalFlag = FlagStruct(full_flag="", 
+                       flag_prefix="flag",
+                       flag_suffix="}",
+                       flag_len=44,
+                       flag_base_chunk_len=2)
+globalmust_idx_value_pairs = []
+globalcannot_idx_value_pairs = []
+
+charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789{}'  # 定义字符集
+length = 2  # 每个组合的长度
+# 创建 BruteDataCombinations 实例
+brute_data_combinations = BruteDataCombinations(charset, length)
+# 将字符集和组合写入到文件
+brute_data_combinations.write_charset_to_file()
+# idx4,5 CurrentBaseChunkAllPosTable:  ['Ah', 'Bk', 'Cj', 'Dm', 'El', 'Fo', 'Gn', 'Ha', 'Jc', 'Kb', 'Le', 'Md', 'Ng', 'Of', 'Py', 'Qx', 'R{', 'Sz', 'T}', 'Xq', 'Yp', 'Zs', 'aH', 'bK', 'cJ', 'dM', 'eL', 'fO', 'gN', 'hA', 'jC', 'kB', 'lE', 'mD', 'nG', 'oF', 'pY', 'qX', 'sZ', 'xQ', 'yP', 'zS', '{R', '}T'] 运行时间: 211.7694秒
+start_time = time.time()
+CurrentBaseChunkAllPosTable = FridaBruteAllPossibleChunksForOne(FridaCracker, FinalFlag, 2)
+# 记录结束时间
+end_time = time.time()
+
+# 计算运行时间
+elapsed_time = end_time - start_time
+print("CurrentBaseChunkAllPosTable: ", CurrentBaseChunkAllPosTable)
+print(f"运行时间: {elapsed_time:.4f}秒")  # 格式化输出，最多保留4位小数
+```

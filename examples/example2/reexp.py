@@ -3,6 +3,7 @@ import frida
 import time
 import itertools
 import string
+import json
 from dataclasses import dataclass
 
 @dataclass
@@ -18,6 +19,18 @@ class FlagStruct:
 class StrCombinations:
     all_combinations : list  # 所有字节序列组合
     combinations_len : int  # 字节序列组合长度
+
+
+def write_skipped_combinations_to_json(skipped_combinations, filename="skipped_combinations.json"):
+    """
+    将跳过的组合信息写入到 JSON 文件中
+
+    :param skipped_combinations: 包含跳过的字符串和基本块索引的列表
+    :param filename: 要保存的文件名
+    """
+    with open(filename, 'w') as json_file:
+        json.dump(skipped_combinations, json_file, indent=4)
+        print(f"跳过的组合信息已保存到 {filename}")
 
 def Fridabrute(F):
 
@@ -57,11 +70,19 @@ def Fridabrute(F):
         process.terminate()
         return result
 
+    except frida.TimedOutError as e:
+        print(f"Frida 错误: {e}")
+        process.terminate()  # 杀死子进程
+        return None
     except frida.NotSupportedError as e:
         print(f"Frida 错误: {e}")
+        process.terminate()  # 杀死子进程
+        return None
+    except Exception as e:
+        print(f"其他错误: {e}")
+        process.terminate()  # 杀死子进程
         return None
     
-
 def initbrute_table(byte_size):
     """
     爆破函数
@@ -71,7 +92,7 @@ def initbrute_table(byte_size):
     """
     global CurrentStrCombinations
     # 选择字符集
-    charset = 'abcdefghijklmnopqrstuvwxyz0123456789-{}' #abcdefghijklmnopqrstuvwxyz0123456789-{}
+    charset = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-{}' #abcdefghijklmnopqrstuvwxyz0123456789-{}
     
     # 生成指定字节数和字符集的所有组合
     combinations = list(itertools.product(charset, repeat=byte_size))
@@ -85,11 +106,11 @@ def initflag():
     :return: None
     """
     global Flag
-    Flag.flag_prefix = ""
+    Flag.flag_prefix = "flag{R"
     Flag.flaglen = 44
     Flag.flagbasechunklen = 2
-    Flag.flagbasechunkidx = 0
-    Flag.currentbrutestr = Flag.flag_prefix + "!"*Flag.flaglen
+    Flag.flagbasechunkidx = 1
+    Flag.currentbrutestr = Flag.flag_prefix + "!"*(Flag.flaglen-len(Flag.flag_prefix))
     Flag.realflag = ""
 
 def filter_flag(currentflag):
@@ -105,7 +126,7 @@ def filter_flag(currentflag):
         return False
     
     # 特殊检查，如果第一个字符是 '{' 或者 '}'，返回 False
-    if currentflag[0] == '{' or currentflag[0] == '}':
+    if currentflag[4] != '{' :
         return False
     
     return True  # 返回满足条件时
@@ -146,6 +167,46 @@ def GetCurrentValueFlag(burteidx):
 
     return ''.join(returnvalue) 
 
+#爆破指定基本块的所有可能
+def brute_force_allpossiblechunks(OldValueNum):
+    """
+    处理所有字符组合，更新flag并返回有效值表
+
+    :param CurrentStrCombinations: 包含字符组合的对象
+    :param OldValueNum: 之前的值用于比较
+    :return: 有效值表列表
+    """
+    global CurrentStrCombinations,Flag
+    CurrentTime = time.time()
+    ValueNumTable = []
+    skipped_combinations = []  # 用于存储跳过的组合信息
+    for i in range(CurrentStrCombinations.combinations_len):
+        UpdateFlagAtIndex(Flag.currentbrutestr, CurrentStrCombinations.all_combinations[i], OldValueNum*2)
+        retvalue = filter_flag(Flag.currentbrutestr)
+        
+        if not retvalue:
+            continue  # 如果不符合过滤条件，跳过当前组合
+        
+        print(Flag.currentbrutestr)
+        ValueNum = Fridabrute(Flag.currentbrutestr.encode())
+        if ValueNum == None:
+            # 记录跳过的组合及其索引
+            skipped_combinations.append({
+                'skipped_string': Flag.currentbrutestr.encode(),
+                'chunk_index': OldValueNum
+            })
+            continue  # 如果返回值为空，跳过当前组合
+
+        if OldValueNum < ValueNum:
+            print("当前有效块序号：", ValueNum)
+            Flag.realflag = Flag.currentbrutestr
+            ValueNum = OldValueNum
+            ValueNumTable.append(GetCurrentValueFlag(OldValueNum))
+            print(f"本位耗时:{time.time() - CurrentTime}s, 正确字符为：{Flag.realflag}")
+    # write_skipped_combinations_to_json(skipped_combinations)
+    return ValueNumTable
+
+
 #初始化爆破字符表
 global CurrentStrCombinations,Flag
 CurrentStrCombinations = StrCombinations([],0)
@@ -155,25 +216,8 @@ initflag()
 filename = "chall"
 cmd = ['/home/kali/IDA_Debug/chall']
 jscode = open("Hook.js", "rb").read().decode()
-ValueNum = 0
-OldValueNum = 0
-CurrentTime = time.time()
 
-ValueNumTable = []
-
-for i in range(CurrentStrCombinations.combinations_len):
-    UpdateFlagAtIndex(Flag.currentbrutestr,CurrentStrCombinations.all_combinations[i],0)
-    retvalue = filter_flag(Flag.currentbrutestr)
-    if not retvalue:
-        continue  # 如果不符合过滤条件，跳过当前组合
-    print(Flag.currentbrutestr)
-    ValueNum = Fridabrute(Flag.currentbrutestr.encode())
-    if OldValueNum < ValueNum:
-        print("当前有效块序号：",ValueNum)
-        Flag.realflag = Flag.currentbrutestr
-        ValueNum = 0
-        ValueNumTable.append(GetCurrentValueFlag(0))
-        print(f"本位耗时:{time.time()-CurrentTime}s,正确字符为：{Flag.realflag}")
-
-# ['dn', 'eo', 'fl', 'gm', 'hb', 'ic', 'ka', 'lf', 'mg', 'nd', 'oe', 'pz', 'q{', 'rx', 'sy', 'w}', 'xr', 'ys', 'zp', '28', '39', '82', '93']
-print(ValueNumTable)
+# 0idx ['dn', 'eo', 'fl', 'gm', 'hb', 'ic', 'ka', 'lf', 'mg', 'nd', 'oe', 'pz', 'q{', 'rx', 'sy', 'w}', 'xr', 'ys', 'zp', '28', '39', '82', '93']
+# 1idx ['ag', 'bd', 'ce', 'db', 'ec', 'ga', 'hn', 'io', 'jl', 'km', 'lj', 'mk', 'nh', 'oi', 'pv', 'qw', 'rt', 'su', 'tr', 'us', 'vp', 'wq', '06', '17', '24', '35', '42', '53', '60', '71', '{}', '}{']
+# 2idx ['{R']
+print(brute_force_allpossiblechunks(3))

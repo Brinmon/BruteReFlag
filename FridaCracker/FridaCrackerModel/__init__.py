@@ -1,0 +1,11 @@
+import subprocess
+import frida
+import time
+import json
+import itertools
+import os
+from FridaCrackerModel.FridaDataProcessed import FlagStruct,BruteDataCombinations,read_charset_from_file,INFO,ERR,DBG
+from FridaCrackerModel.FridaCrackerBase import FridaCrackerBase,FridaBruteAllPossibleChunksForOne,globalmust_idx_value_pairs,globalcannot_idx_value_pairs 
+
+
+

@@ -3,20 +3,23 @@ import frida
 import time
 import itertools
 import string
+from dataclasses import dataclass
 
-# 全局变量存储字节序列组合
-byte_combinations = {}
-combinations_len = 0
+@dataclass
+class FlagStruct:
+    currentbrutestr: str  # 当前爆破的字符
+    flag_prefix : str  # flag前缀
+    flaglen: int  # flag长度
+    flagbasechunklen : int  # flag基本块长度
+    flagbasechunkidx : int  # flag基本块长度
+    realflag: str  # 真实flag
 
-flaglen = 0x2a
-flag = bytearray(b'!' * flaglen)
-filename = "chall"
-cmd = ['/home/kali/IDA_Debug/chall']
-jscode = open("Hook.js", "rb").read().decode()
+@dataclass
+class StrCombinations:
+    all_combinations : list  # 所有字节序列组合
+    combinations_len : int  # 字节序列组合长度
 
-
-result = 0
-def brute(F):
+def Fridabrute(F):
 
     def on_message(message, data):
         global result
@@ -59,101 +62,118 @@ def brute(F):
         return None
     
 
-
-
-def generate_byte_combinations(byte_size, charset):
-    """生成指定字节数和字符集的所有组合,只生成一次"""
-    global byte_combinations,combinations_len
-    if (byte_size, charset) not in byte_combinations:
-        byte_combinations[(byte_size, charset)] = list(itertools.product(charset, repeat=byte_size))
-    if combinations_len == 0:
-        combinations_len = len(byte_combinations[(byte_size, charset)])
-        print(combinations_len)
-    return byte_combinations[(byte_size, charset)]
-
-def brute_force(byte_size, idx, charset='all'):
+def initbrute_table(byte_size):
     """
     爆破函数
 
     :param byte_size: 每次返回的字节数
-    :param idx: 控制爆破次数的索引
-    :param charset: 字符集选择，默认为全体字符集
-    :return: 字符组合
+    :return: 所有字符组合的列表
     """
+    global CurrentStrCombinations
     # 选择字符集
-    if charset == 'all':
-        charset = string.printable.strip()
-    elif charset == 'uppercase':
-        charset = string.ascii_uppercase
-    elif charset == 'lowercase':
-        charset = string.ascii_lowercase
-    elif charset == 'digits':
-        charset = string.digits
-    elif charset == 'alphanumeric':
-        charset = string.ascii_letters + string.digits
-    else:
-        raise ValueError("Invalid charset. Choose from 'all', 'uppercase', 'lowercase', 'digits', or 'alphanumeric'.")
+    charset = 'abcdefghijklmnopqrstuvwxyz0123456789-{}' #abcdefghijklmnopqrstuvwxyz0123456789-{}
+    
+    # 生成指定字节数和字符集的所有组合
+    combinations = list(itertools.product(charset, repeat=byte_size))
+    print(combinations)
+    CurrentStrCombinations.all_combinations = [''.join(combination) for combination in combinations]
+    CurrentStrCombinations.combinations_len = len(combinations)
 
-    # 生成字节序列组合
-    combinations = generate_byte_combinations(byte_size, charset)
-    # print(len(combinations))
-    # print(byte_combinations)
-    # 检查索引是否有效
-    if idx < 0 or idx >= len(combinations):
-        raise IndexError("Index out of range")
+def initflag():
+    """
+    初始化flag
+    :return: None
+    """
+    global Flag
+    Flag.flag_prefix = ""
+    Flag.flaglen = 44
+    Flag.flagbasechunklen = 2
+    Flag.flagbasechunkidx = 0
+    Flag.currentbrutestr = Flag.flag_prefix + "!"*Flag.flaglen
+    Flag.realflag = ""
 
-    # 返回指定索引的字节组合
-    return ''.join(combinations[idx])
-
-# 设置特定位置字符过滤规则和强制赋值规则
 def filter_flag(currentflag):
     # 强制赋值：如果第5个字符位置是空，就强制赋值为 'x'
     # 例如，强制第4个字符为特定值 'b'
     currentflag = list(currentflag)  # 转为列表才能修改指定位置
-    if len(currentflag) >= 5:
-        currentflag[4] = '{'  # 强制第4个字符为 'b'
-        # currentflag[0] = 'f'  # 强制第4个字符为 'b'
-        # currentflag[1] = 'l'  # 强制第4个字符为 'b'
-        # currentflag[2] = 'a'  # 强制第4个字符为 'b'
-        # currentflag[3] = 'g'  # 强制第4个字符为 'b'
 
-    # 重新拼接回去
-    currentflag = ''.join(currentflag)
+    # 不允许的字符列表
+    invalid_chars = ['a', 'b', 'c']
+
+    # 检查第一个字符是否满足条件
+    if currentflag[0] in invalid_chars:
+        return False
     
-    return currentflag  # 返回强制赋值后的结果
-print("开始！")
+    # 特殊检查，如果第一个字符是 '{' 或者 '}'，返回 False
+    if currentflag[0] == '{' or currentflag[0] == '}':
+        return False
+    
+    return True  # 返回满足条件时
+
+def UpdateFlagAtIndex(original_string, new_chars, index):
+    """
+    更新指定索引位置的字符串
+
+    :param original_string: 原始字符串
+    :param new_chars: 新字符字符串
+    :param index: 更新的起始索引
+    :return: 更新后的字符串
+    """
+    global Flag
+    if index < 0 or index + len(new_chars) > len(original_string):
+        raise IndexError("Index out of range for update.")
+
+    # 将字符串转为列表以便修改
+    string_list = list(original_string)
+    
+    # 更新指定索引位置的字符
+    string_list[index:index + len(new_chars)] = new_chars
+    if Flag.flagbasechunkidx*Flag.flagbasechunklen >=4:
+        string_list[4] = '{'  # 强制第4个字符为 '{'
+    Flag.currentbrutestr = ''.join(string_list)
+
+def GetCurrentValueFlag(burteidx):
+    """
+    获取当前爆破的flag    
+    :return: 当前爆破的flag
+    """
+    global Flag
+    flag = list(Flag.currentbrutestr)
+    Flag.flagbasechunklen = 2
+    returnvalue = []
+    for idx in range(Flag.flagbasechunklen):
+        returnvalue.append(flag[burteidx*Flag.flagbasechunklen+idx])
+
+    return ''.join(returnvalue) 
+
+#初始化爆破字符表
+global CurrentStrCombinations,Flag
+CurrentStrCombinations = StrCombinations([],0)
+Flag = FlagStruct("", "", 0, 0, 0, "")
+initbrute_table(2)
+initflag()
+filename = "chall"
+cmd = ['/home/kali/IDA_Debug/chall']
+jscode = open("Hook.js", "rb").read().decode()
+ValueNum = 0
+OldValueNum = 0
 CurrentTime = time.time()
 
-flaglen = 44
-bpvalue = "" #flag{Rea
-flag = bpvalue +"!"*flaglen
-count = len(bpvalue)
-old_number = len(bpvalue)//2
-init = brute_force(2,0,'all')
-while count < flaglen:
-    for i in range(combinations_len):
-        currentcrackValue = brute_force(2,i,'all')
-        currentflag = list(flag)
-        currentcrackValue = list(currentcrackValue)
-        currentflag[count] = currentcrackValue[0]
-        currentflag[count+1] = currentcrackValue[1]
-        Currentflag = ''.join(currentflag)
-        # print(Currentflag)
-        # 过滤规则
-        # print("value",Currentflag)
-        retvalue = filter_flag(Currentflag)
-        if not retvalue:
-            continue  # 如果不符合过滤条件，跳过当前组合        
-        new_number = brute(retvalue.encode())
-        print("value",retvalue)
-        print("value",new_number)
-        if old_number < new_number:
-            print("old_number",old_number)
-            print("new_number",new_number)
-            old_number = new_number
-            flag = ''.join(retvalue)
-            Currentflag = flag
-            count += 2
-            print(f"本位耗时:{time.time()-CurrentTime}s,正确字符为：{flag}")
-            break
+ValueNumTable = []
 
+for i in range(CurrentStrCombinations.combinations_len):
+    UpdateFlagAtIndex(Flag.currentbrutestr,CurrentStrCombinations.all_combinations[i],0)
+    retvalue = filter_flag(Flag.currentbrutestr)
+    if not retvalue:
+        continue  # 如果不符合过滤条件，跳过当前组合
+    print(Flag.currentbrutestr)
+    ValueNum = Fridabrute(Flag.currentbrutestr.encode())
+    if OldValueNum < ValueNum:
+        print("当前有效块序号：",ValueNum)
+        Flag.realflag = Flag.currentbrutestr
+        ValueNum = 0
+        ValueNumTable.append(GetCurrentValueFlag(0))
+        print(f"本位耗时:{time.time()-CurrentTime}s,正确字符为：{Flag.realflag}")
+
+# ['dn', 'eo', 'fl', 'gm', 'hb', 'ic', 'ka', 'lf', 'mg', 'nd', 'oe', 'pz', 'q{', 'rx', 'sy', 'w}', 'xr', 'ys', 'zp', '28', '39', '82', '93']
+print(ValueNumTable)

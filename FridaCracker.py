@@ -1,4 +1,10 @@
-from FridaCrackerModel import *
+# 导入FlagDataProcessed包中的所有函数和方法
+from FlagDataProcessed.FlagStructData import *
+from FlagDataProcessed.GenerBruteData import *
+
+# 导入FridaCracker包中的所有函数和方法
+from FridaCracker.FridaCrackerBase import *
+
 
 cmd = ['/home/kali/GithubProject/BruteReFlag/Examples/example2/chall']
 jscode = open("/home/kali/GithubProject/BruteReFlag/Examples/example2/Hook.js", "rb").read().decode()

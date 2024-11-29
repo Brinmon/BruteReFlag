@@ -1,7 +1,33 @@
-from  FridaCrackerModel import *
+from FridaCracker import *
 
 globalmust_idx_value_pairs = []
 globalcannot_idx_value_pairs = []
+
+# 全局调试标志
+debug_mode = True
+info_mode = True
+
+# 设置输出模式
+def set_print_mode(info_enabled, debug_enabled):
+    """设置输出模式"""
+    global info_mode, debug_mode
+    info_mode = info_enabled
+    debug_mode = debug_enabled
+   
+def DBG(message):
+    """输出调试信息 (蓝色)"""
+    if debug_mode:
+        print(f"\033[94mDEBUG: {message}\033[0m")  # ANSI 转义序列，\033[94m 是蓝色，\033[0m 重置为默认颜色
+
+def ERR(message):
+    """输出错误信息 (红色)"""
+    print(f"\033[91mERROR: {message}\033[0m")  # ANSI 转义序列，\033[91m 是红色，\033[0m 重置为默认颜色
+
+def INFO(message):
+    """输出信息 (绿色)"""
+    if info_mode:
+        print(f"\033[92mINFO: {message}\033[0m")  # ANSI 转义序列，\033[92m 是绿色，\033[0m 重置为默认颜色
+
 
 #定义一个FridaCrackerBase类
 class FridaCrackerBase(object):
@@ -125,3 +151,17 @@ def FridaBruteOneChunkValue(CurrentFridaCrackerBaseBase:FridaCrackerBase,Current
                 INFO("没有错误信息，未写入文件。")
             return CurrentBaseChunkAllPosTable[0]
     return None
+
+
+#需要一个专门读取json文件的函数读取BurteDataCombinations类生成的字符集表和组合
+def read_charset_from_file(filename='charset.json'):
+    """
+    从文件中读取字符集表和组合
+
+    :param filename: 要读取的文件名
+    :return: 字符集表和组合
+    """
+    file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Data', filename)
+    with open(file_path, 'r') as f:
+        charset_data = json.load(f)
+    return charset_data['combinations']
